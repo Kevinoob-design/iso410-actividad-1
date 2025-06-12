@@ -28,13 +28,14 @@ test.describe('Check PGA Should:', () => {
 		await termResponse
 
 		const grades: {
-			selectedTerm: (number | null),
-			gpa: (number | null),
+			selectedTermGpa: number,
+			gpa: number,
+			gpaHours: number[],
+			qualityPoints: number[],
+			totalQualityPoints: number,
+			totalGpaHours: number,
 			term: string | null
 		}[] = []
-
-		let totalGradePoints = 0;
-		let totalCreditHours = 0;
 
 		for (const el of await viewGradePage.locator('#select2-drop').getByRole('option').all()) {
 			const term = await el.textContent()
@@ -54,17 +55,29 @@ test.describe('Check PGA Should:', () => {
 
 			await viewGradePage.locator('#GR').click();
 
-			const selectedTerm = await viewGradePage.getByLabel('Selected Term').textContent()
+			const selectedTermGpa = await viewGradePage.getByLabel('Selected Term').textContent()
+
+			const gpaHours = await Promise.all((
+				await viewGradePage.locator('td:nth-child(8)').all()).map(async el =>
+					Number(await el.textContent() || 0)
+				)
+			)
+			const qualityPoints = await Promise.all((
+				await viewGradePage.locator('td:nth-child(9)').all()).map(async el =>
+					Number(await el.textContent() || 0)
+				)
+			)
+
 			const gpa = await viewGradePage.getByLabel('Institutional').textContent()
 
-			totalGradePoints += Number(selectedTerm) || 0;
-			// totalGradePoints += selectedTerm * term.creditHours;
-			// totalCreditHours += term.creditHours;
-
 			grades.push({
-				selectedTerm: Number(selectedTerm) || null,
-				gpa: Number(gpa) || null,
-				term: term
+				selectedTermGpa: Number(selectedTermGpa) || -1,
+				gpa: Number(gpa) || 0,
+				term: term,
+				gpaHours: gpaHours,
+				qualityPoints: qualityPoints,
+				totalQualityPoints: qualityPoints.reduce((a, b) => a + b, 0),
+				totalGpaHours: gpaHours.reduce((a, b) => a + b, 0)
 			})
 
 			console.log('GPA:', grades[ grades.length - 1 ])
@@ -76,11 +89,14 @@ test.describe('Check PGA Should:', () => {
 			await termResponse
 		}
 
-		// if (totalCreditHours !== 0) {
-		// 	console.log(totalGradePoints / totalCreditHours)
-		// }
+		const totalQualityPoints = grades.reduce((a, b) => a + b.totalQualityPoints || 0, 0)
+		const totalGpaHours = grades.reduce((a, b) => a + b.totalGpaHours, 0)
 
-		console.log(totalGradePoints / grades.length)
-		console.log('Grades:', grades)
+		console.log('Total quality points:', totalQualityPoints)
+		console.log('Total GPA Hours:', totalGpaHours)
+
+		if (totalQualityPoints !== 0 && totalGpaHours !== 0) {
+			console.log('Total GPA:', totalQualityPoints / totalGpaHours)
+		}
 	})
 })
